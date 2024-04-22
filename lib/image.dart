@@ -153,6 +153,8 @@ export 'src/formats/pvr_encoder.dart';
 export 'src/formats/tga/tga_info.dart';
 export 'src/formats/tga_decoder.dart';
 export 'src/formats/tga_encoder.dart';
+export 'src/formats/dds/dds_info.dart';
+export 'src/formats/dds_decoder.dart';
 //export 'src/formats/tiff/tiff_bit_reader.dart';
 //export 'src/formats/tiff/tiff_entry.dart';
 //export 'src/formats/tiff/tiff_fax_decoder.dart';
