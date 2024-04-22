@@ -7,6 +7,7 @@ import '../util/file_access.dart';
 import 'bmp_decoder.dart';
 import 'bmp_encoder.dart';
 import 'cur_encoder.dart';
+import 'dds_decoder.dart';
 import 'decoder.dart';
 import 'encoder.dart';
 import 'exr_decoder.dart';
@@ -72,6 +73,9 @@ Decoder? findDecoderForNamedImage(String name) {
       n.endsWith('.pgm') ||
       n.endsWith('.ppm')) {
     return PnmDecoder();
+  }
+  if (n.endsWith('.dds')) {
+    return DdsDecoder();
   }
   return null;
 }
