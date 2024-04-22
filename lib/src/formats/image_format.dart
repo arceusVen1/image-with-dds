@@ -12,6 +12,7 @@ enum ImageFormat {
   tga,
   tiff,
   webp,
+  dds,
   custom,
   invalid
 }
