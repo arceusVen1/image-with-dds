@@ -234,7 +234,7 @@ extension DDSFourCCFormatExtension on DDSFourCCFormat {
   int get channelsCount {
     switch (this) {
       case DDSFourCCFormat.DXT1:
-        return 3;
+        return 4;
       case DDSFourCCFormat.DXT2: // ignored
         return 4;
       case DDSFourCCFormat.DXT3: // ignored
