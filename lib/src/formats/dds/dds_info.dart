@@ -269,16 +269,28 @@ extension DDSFourCCFormatExtension on DDSFourCCFormat {
       int color0Data, int color1Data) {
     final colors = [
       (
-        r: color0Data & masks.r,
-        g: color0Data & masks.g,
-        b: color0Data & masks.b,
+        r: ((color0Data & masks.r) / masks.r  * 255).ceil(),
+        g: ((color0Data & masks.g) / masks.g * 255).ceil(),
+        b: ((color0Data & masks.b) / masks.b * 255).ceil(),
       ),
       (
-        r: color1Data & masks.r,
-        g: color1Data & masks.g,
-        b: color1Data & masks.b,
+        r: ((color1Data & masks.r) / masks.r * 255).ceil() ,
+        g: ((color1Data & masks.g) / masks.g * 255).ceil(),
+        b: ((color1Data & masks.b) / masks.b * 255).ceil(),
       ),
     ];
+    // colors.addAll([
+    //   (
+    //     r: (1 / 2 * colors[0].r + 1 / 2 * colors[1].r).ceil(),
+    //     g: (1 / 2 * colors[0].g + 1 / 2 * colors[1].g).ceil(),
+    //     b: (1 / 2 * colors[0].b + 1 / 2 * colors[1].b).ceil(),
+    //   ),
+    //   (
+    //     r: 0,
+    //     g: 0,
+    //     b: 0,
+    //   )
+    // ]);
     colors.addAll([
       (
         r: (2 / 3 * colors[0].r + 1 / 3 * colors[1].r).ceil(),

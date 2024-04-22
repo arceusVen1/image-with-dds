@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'dart:typed_data';
 
 import '../../image.dart';
@@ -68,21 +69,18 @@ class DdsDecoder extends Decoder {
       height: height,
       numChannels: info!.pixelFormatFourCC.channelsCount,
     );
-
     final size = width * height;
-    final data = input.readBytes(size ~/ 16);
+    final data = input.readBytes(
+        size ~/ _pixelsPerBlock * info!.pixelFormatFourCC.getBytesPer4x4Block);
 
     final List<Pixel> pixelsBuffer =
         List.filled(_pixelsPerBlock, Pixel.undefined);
     int row = 0;
     int col = 0;
-    for (var pCount = 0; pCount < size / _pixelsPerBlock; pCount++) {
+    for (var block = 0; block < size / _pixelsPerBlock; block++) {
       for (var p = 0; p < _pixelsPerBlock; p++) {
         final x = col + p % 4;
         final y = row + p ~/ 4;
-        if (x >= width || y >= height) {
-          continue;
-        }
         final pixel = image.getPixel(x, y);
         pixelsBuffer[p] = pixel;
       }
@@ -101,8 +99,8 @@ class DdsDecoder extends Decoder {
           alpha0,
           alpha1,
         );
-        final alphaData = blockData.readBytes(3).readUint32();
         for (var i = 0; i < 2; i++) {
+          final alphaData = blockData.readBytes(3).readUint24();
           for (var j = 0; j < 8; j++) {
             final alpha = alphas[(alphaData >> j * 3) & 0x7];
             pixelsBuffer[i * 8 + j].a = alpha;
@@ -126,7 +124,11 @@ class DdsDecoder extends Decoder {
             ..g = color.g
             ..b = color.b;
           if (info!.pixelFormatFourCC == DDSFourCCFormat.DXT1) {
-            pixelsBuffer[i * 4 + j].a = 255;
+            if (color.r + color.g + color.b == 0) {
+              pixelsBuffer[i * 4 + j].a = 0;
+            } else {
+              pixelsBuffer[i * 4 + j].a = 255;
+            }
           }
         }
       }
@@ -139,8 +141,11 @@ class DdsDecoder extends Decoder {
     final int pixelBytesCount = info!.pixelFormatRGBBitCount ~/ 8;
     final width = info!.width;
     final height = info!.height;
-    final image =
-        Image(width: width, height: height, numChannels: pixelBytesCount);
+    final image = Image(
+      width: width,
+      height: height,
+      numChannels: pixelBytesCount,
+    );
 
     final size = width * height;
     final data = input.readBytes(size);
