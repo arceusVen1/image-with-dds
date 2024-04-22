@@ -291,7 +291,9 @@ extension DDSFourCCFormatExtension on DDSFourCCFormat {
     //     b: 0,
     //   )
     // ]);
-    if (this == DDSFourCCFormat.DXT5 || this == DDSFourCCFormat.DXT4){
+    if (this == DDSFourCCFormat.DXT5 ||
+        this == DDSFourCCFormat.DXT4 ||
+        (this == DDSFourCCFormat.DXT1 && color0Data > color1Data)) {
       colors.addAll([
         (
           r: (2 / 3 * colors[0].r + 1 / 3 * colors[1].r).ceil(),
