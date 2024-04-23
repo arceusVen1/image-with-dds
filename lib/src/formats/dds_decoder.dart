@@ -106,6 +106,16 @@ class DdsDecoder extends Decoder {
             pixelsBuffer[i * 8 + j].a = alpha;
           }
         }
+      } else if (info!.pixelFormatFourCC == DDSFourCCFormat.DXT3 ||
+          info!.pixelFormatFourCC == DDSFourCCFormat.DXT2) {
+        // use BC2 alpha block
+        for (var i = 0; i < 4; i++) {
+          final alphaData = blockData.readUint16();
+          for (var j = 0; j < 4; j++) {
+            final alpha = ((alphaData >> j * 4) & 0xF) / 0xF;
+            pixelsBuffer[i * 4 + j].aNormalized = alpha;
+          }
+        }
       }
 
       final color0Data = blockData.readUint16();

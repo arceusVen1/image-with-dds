@@ -291,22 +291,7 @@ extension DDSFourCCFormatExtension on DDSFourCCFormat {
     //     b: 0,
     //   )
     // ]);
-    if (this == DDSFourCCFormat.DXT5 ||
-        this == DDSFourCCFormat.DXT4 ||
-        (this == DDSFourCCFormat.DXT1 && color0Data > color1Data)) {
-      colors.addAll([
-        (
-          r: (2 / 3 * colors[0].r + 1 / 3 * colors[1].r).ceil(),
-          g: (2 / 3 * colors[0].g + 1 / 3 * colors[1].g).ceil(),
-          b: (2 / 3 * colors[0].b + 1 / 3 * colors[1].b).ceil(),
-        ),
-        (
-          r: (1 / 3 * colors[0].r + 2 / 3 * colors[1].r).ceil(),
-          g: (1 / 3 * colors[0].g + 2 / 3 * colors[1].g).ceil(),
-          b: (1 / 3 * colors[0].b + 2 / 3 * colors[1].b).ceil(),
-        )
-      ]);
-    } else {
+    if (this == DDSFourCCFormat.DXT1 && color0Data < color1Data) {
       colors.addAll([
         (
           r: (1 / 2 * colors[0].r + 1 / 2 * colors[1].r).ceil(),
@@ -317,6 +302,19 @@ extension DDSFourCCFormatExtension on DDSFourCCFormat {
           r: 0,
           g: 0,
           b: 0,
+        )
+      ]);
+    } else {
+      colors.addAll([
+        (
+          r: (2 / 3 * colors[0].r + 1 / 3 * colors[1].r).ceil(),
+          g: (2 / 3 * colors[0].g + 1 / 3 * colors[1].g).ceil(),
+          b: (2 / 3 * colors[0].b + 1 / 3 * colors[1].b).ceil(),
+        ),
+        (
+          r: (1 / 3 * colors[0].r + 2 / 3 * colors[1].r).ceil(),
+          g: (1 / 3 * colors[0].g + 2 / 3 * colors[1].g).ceil(),
+          b: (1 / 3 * colors[0].b + 2 / 3 * colors[1].b).ceil(),
         )
       ]);
     }
