@@ -1,9 +1,6 @@
 import 'dart:io';
 import 'package:image/image.dart';
-import 'package:image/src/formats/dds_decoder.dart';
 import 'package:test/test.dart';
-
-import '../_test_util.dart';
 
 void main() {
   group('Format', () {

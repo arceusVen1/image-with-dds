@@ -1,5 +1,194 @@
 import '../../../image.dart';
 
+class PixelFormatHeader {
+  int size = 0;
+  DdsPixelFormatFlags flags = DdsPixelFormatFlags.ddpfRGB;
+  DDSFourCCFormat fourCC = DDSFourCCFormat.DXT1;
+  int rgbBitCount = 0;
+  int rBitMask = 0;
+  int gBitMask = 0;
+  int bBitMask = 0;
+  int aBitMask = 0;
+
+  CompressionAlgorithm get compressionAlgorithm {
+    if (flags == DdsPixelFormatFlags.ddpfFourCC) {
+      return CompressionAlgorithmExtension.fromFourCC(fourCC);
+    }
+    return CompressionAlgorithm.None;
+  }
+
+  bool get isCompressed => flags == DdsPixelFormatFlags.ddpfFourCC;
+
+  List<({int r, int g, int b})> generateColorsFromInitialColors(
+      int color0Data, int color1Data) {
+        if (!isCompressed) {
+      throw ImageException('This method should be called only for compressed formats');
+        }
+    final masks = compressionAlgorithm.masks;
+
+    final colors = [
+      (
+        r: ((color0Data & masks.r) / masks.r * 255).ceil(),
+        g: ((color0Data & masks.g) / masks.g * 255).ceil(),
+        b: ((color0Data & masks.b) / masks.b * 255).ceil(),
+      ),
+      (
+        r: ((color1Data & masks.r) / masks.r * 255).ceil(),
+        g: ((color1Data & masks.g) / masks.g * 255).ceil(),
+        b: ((color1Data & masks.b) / masks.b * 255).ceil(),
+      ),
+    ];
+    if (compressionAlgorithm == CompressionAlgorithm.BC1 && color0Data < color1Data) {
+      colors.addAll([
+        (
+          r: (1 / 2 * colors[0].r + 1 / 2 * colors[1].r).ceil(),
+          g: (1 / 2 * colors[0].g + 1 / 2 * colors[1].g).ceil(),
+          b: (1 / 2 * colors[0].b + 1 / 2 * colors[1].b).ceil(),
+        ),
+        (
+          r: 0,
+          g: 0,
+          b: 0,
+        )
+      ]);
+    } else {
+      colors.addAll([
+        (
+          r: (2 / 3 * colors[0].r + 1 / 3 * colors[1].r).ceil(),
+          g: (2 / 3 * colors[0].g + 1 / 3 * colors[1].g).ceil(),
+          b: (2 / 3 * colors[0].b + 1 / 3 * colors[1].b).ceil(),
+        ),
+        (
+          r: (1 / 3 * colors[0].r + 2 / 3 * colors[1].r).ceil(),
+          g: (1 / 3 * colors[0].g + 2 / 3 * colors[1].g).ceil(),
+          b: (1 / 3 * colors[0].b + 2 / 3 * colors[1].b).ceil(),
+        )
+      ]);
+    }
+    return colors;
+  }
+
+  List<int> generateAlphasFromInitialAlphas(int alpha0, int alpha1) {
+    if (!isCompressed && compressionAlgorithm != CompressionAlgorithm.BC3) {
+      throw ImageException('This method should be called only for compressed formats');
+    }
+    final alphas = [
+      alpha0,
+      alpha1,
+    ];
+    if (alpha0 > alpha1) {
+      alphas.addAll([
+        (6 / 7 * alpha0 + 1 / 7 * alpha1).ceil(),
+        (5 / 7 * alpha0 + 2 / 7 * alpha1).ceil(),
+        (4 / 7 * alpha0 + 3 / 7 * alpha1).ceil(),
+        (3 / 7 * alpha0 + 4 / 7 * alpha1).ceil(),
+        (2 / 7 * alpha0 + 5 / 7 * alpha1).ceil(),
+        (1 / 7 * alpha0 + 6 / 7 * alpha1).ceil(),
+      ]);
+    } else {
+      alphas.addAll([
+        (4 / 5 * alpha0 + 1 / 5 * alpha1).ceil(),
+        (3 / 5 * alpha0 + 2 / 5 * alpha1).ceil(),
+        (2 / 5 * alpha0 + 3 / 5 * alpha1).ceil(),
+        (1 / 5 * alpha0 + 4 / 5 * alpha1).ceil(),
+        0,
+        255,
+      ]);
+    }
+    return alphas;
+  }
+
+  void read(InputBuffer input) {
+    size = input.readUint32();
+    final flagsData = input.readUint32();
+    flags = DDSdwFlagsExtension.fromInt(flagsData);
+    final fourCCData = input.readUint32();
+    fourCC = DDSFourCCFormatExtension.fromInt(fourCCData);
+    rgbBitCount = input.readUint32();
+    rBitMask = input.readUint32();
+    gBitMask = input.readUint32();
+    bBitMask = input.readUint32();
+    aBitMask = input.readUint32();
+  }
+
+  bool isValid() {
+    if (flags != DdsPixelFormatFlags.ddpfFourCC) {
+      if (rgbBitCount <= 0) {
+        return false;
+      }
+
+      if (rBitMask <= 0) {
+        return false;
+      }
+
+      if (gBitMask <= 0) {
+        return false;
+      }
+
+      if (bBitMask <= 0) {
+        return false;
+      }
+
+      if (aBitMask <= 0) {
+        return false;
+      }
+    }
+    return true;
+  }
+}
+
+enum CompressionAlgorithm {
+  None,
+  BC1,
+  BC2,
+  BC3,
+}
+
+extension CompressionAlgorithmExtension on CompressionAlgorithm {
+  static CompressionAlgorithm fromFourCC(DDSFourCCFormat fourCC) {
+    switch (fourCC) {
+      case DDSFourCCFormat.DXT1:
+        return CompressionAlgorithm.BC1;
+      case DDSFourCCFormat.DXT2:
+        return CompressionAlgorithm.BC2;
+      case DDSFourCCFormat.DXT3:
+        return CompressionAlgorithm.BC2;
+      case DDSFourCCFormat.DXT4:
+        return CompressionAlgorithm.BC3;
+      case DDSFourCCFormat.DXT5:
+        return CompressionAlgorithm.BC3;
+      default:
+        throw ImageException('Invalid DDSFourCCFormat value: $fourCC');
+    }
+  }
+
+   int get getBytesPer4x4Block {
+    switch (this) {
+      case CompressionAlgorithm.BC1:
+        return 8;
+      case CompressionAlgorithm.BC2:
+        return 16;
+      case CompressionAlgorithm.BC3:
+        return 16;
+      default:
+        throw ImageException('Invalid Compression Algorithm for value: $this');
+    }
+  }
+
+  ({int r, int g, int b, int a}) get masks {
+    switch (this) {
+      case CompressionAlgorithm.BC1:
+        return (r: 0xF800, g: 0x7E0, b: 0x001F, a: 0);
+      case CompressionAlgorithm.BC2:
+        return (r: 0xF800, g: 0x7E0, b: 0x001F, a: 0x0F);
+      case CompressionAlgorithm.BC3:
+        return (r: 0xF800, g: 0x7E0, b: 0x001F, a: 0xFF);
+      default:
+        throw ImageException('Invalid DDSFourCCFormat value: $this');
+    }
+  }
+}
+
 class DdsInfo extends DecodeInfo {
   @override
   int get numFrames => 1;
@@ -20,14 +209,7 @@ class DdsInfo extends DecodeInfo {
   // dwReserved*11 is ignored
 
   // ----------------- pixelFormat strcture ------------------------------------
-  int pixelFormatSize = 0;
-  DdsPixelFormatFlags pixelFormatFlags = DdsPixelFormatFlags.ddpfRGB;
-  DDSFourCCFormat pixelFormatFourCC = DDSFourCCFormat.DXT1;
-  int pixelFormatRGBBitCount = 0;
-  int pixelFormatRBitMask = 0;
-  int pixelFormatGBitMask = 0;
-  int pixelFormatBBitMask = 0;
-  int pixelFormatABitMask = 0;
+  PixelFormatHeader pixelFormat = PixelFormatHeader();
   // ---------------------------------------------------------------------------
 
   int caps1 = 0;
@@ -65,16 +247,7 @@ class DdsInfo extends DecodeInfo {
     mipmapCount = header.readUint32();
     header.skip(44); // reserved
 
-    pixelFormatSize = header.readUint32();
-    final pixelFormatFlagsValue = header.readUint32();
-    pixelFormatFlags = DDSdwFlagsExtension.fromInt(pixelFormatFlagsValue);
-
-    pixelFormatFourCC = DDSFourCCFormatExtension.fromInt(header.readUint32());
-    pixelFormatRGBBitCount = header.readUint32();
-    pixelFormatRBitMask = header.readUint32();
-    pixelFormatGBitMask = header.readUint32();
-    pixelFormatBBitMask = header.readUint32();
-    pixelFormatABitMask = header.readUint32();
+    pixelFormat.read(header);
 
     caps1 = header.readUint32();
     caps2 = header.readUint32();
@@ -91,37 +264,15 @@ class DdsInfo extends DecodeInfo {
       return false;
     }
 
-    // if (mipmapCount < 1) {
-    //   return false;
-    // }
-
-    if (pixelFormatFlags != DdsPixelFormatFlags.ddpfFourCC) {
-      if (pixelFormatRGBBitCount <= 0) {
-        return false;
-      }
-
-      if (pixelFormatRBitMask <= 0) {
-        return false;
-      }
-
-      if (pixelFormatGBitMask <= 0) {
-        return false;
-      }
-
-      if (pixelFormatBBitMask <= 0) {
-        return false;
-      }
-
-      if (pixelFormatABitMask <= 0) {
-        return false;
-      }
+    if (mipmapCount < 1) {
+      return false;
     }
 
     if (caps1 < 0x1000) {
       return false;
     }
 
-    return true;
+    return pixelFormat.isValid();
   }
 }
 
@@ -228,141 +379,6 @@ extension DDSFourCCFormatExtension on DDSFourCCFormat {
         return DDSFourCCFormat.DXT5;
       default:
         throw ImageException('Invalid DDSFourCCFormat value: $value');
-    }
-  }
-
-  int get channelsCount {
-    switch (this) {
-      case DDSFourCCFormat.DXT1:
-        return 4;
-      case DDSFourCCFormat.DXT2: // ignored
-        return 4;
-      case DDSFourCCFormat.DXT3: // ignored
-        return 4;
-      case DDSFourCCFormat.DXT4:
-        return 4;
-      case DDSFourCCFormat.DXT5:
-        return 4;
-      default:
-        throw ImageException('Invalid DDSFourCCFormat value: $this');
-    }
-  }
-
-  ({int r, int g, int b, int a}) get masks {
-    switch (this) {
-      case DDSFourCCFormat.DXT1:
-        return (r: 0xF800, g: 0x7E0, b: 0x001F, a: 0);
-      case DDSFourCCFormat.DXT2:
-        return (r: 0xF800, g: 0x7E0, b: 0x001F, a: 0x0F);
-      case DDSFourCCFormat.DXT3:
-        return (r: 0xF800, g: 0x7E0, b: 0x001F, a: 0x0F);
-      case DDSFourCCFormat.DXT4:
-        return (r: 0xF800, g: 0x7E0, b: 0x001F, a: 0xFF);
-      case DDSFourCCFormat.DXT5:
-        return (r: 0xF800, g: 0x7E0, b: 0x001F, a: 0xFF);
-      default:
-        throw ImageException('Invalid DDSFourCCFormat value: $this');
-    }
-  }
-
-  List<({int r, int g, int b})> generateColorsFromInitialColors(
-      int color0Data, int color1Data) {
-    final colors = [
-      (
-        r: ((color0Data & masks.r) / masks.r * 255).ceil(),
-        g: ((color0Data & masks.g) / masks.g * 255).ceil(),
-        b: ((color0Data & masks.b) / masks.b * 255).ceil(),
-      ),
-      (
-        r: ((color1Data & masks.r) / masks.r * 255).ceil(),
-        g: ((color1Data & masks.g) / masks.g * 255).ceil(),
-        b: ((color1Data & masks.b) / masks.b * 255).ceil(),
-      ),
-    ];
-    // colors.addAll([
-    //   (
-    //     r: (1 / 2 * colors[0].r + 1 / 2 * colors[1].r).ceil(),
-    //     g: (1 / 2 * colors[0].g + 1 / 2 * colors[1].g).ceil(),
-    //     b: (1 / 2 * colors[0].b + 1 / 2 * colors[1].b).ceil(),
-    //   ),
-    //   (
-    //     r: 0,
-    //     g: 0,
-    //     b: 0,
-    //   )
-    // ]);
-    if (this == DDSFourCCFormat.DXT1 && color0Data < color1Data) {
-      colors.addAll([
-        (
-          r: (1 / 2 * colors[0].r + 1 / 2 * colors[1].r).ceil(),
-          g: (1 / 2 * colors[0].g + 1 / 2 * colors[1].g).ceil(),
-          b: (1 / 2 * colors[0].b + 1 / 2 * colors[1].b).ceil(),
-        ),
-        (
-          r: 0,
-          g: 0,
-          b: 0,
-        )
-      ]);
-    } else {
-      colors.addAll([
-        (
-          r: (2 / 3 * colors[0].r + 1 / 3 * colors[1].r).ceil(),
-          g: (2 / 3 * colors[0].g + 1 / 3 * colors[1].g).ceil(),
-          b: (2 / 3 * colors[0].b + 1 / 3 * colors[1].b).ceil(),
-        ),
-        (
-          r: (1 / 3 * colors[0].r + 2 / 3 * colors[1].r).ceil(),
-          g: (1 / 3 * colors[0].g + 2 / 3 * colors[1].g).ceil(),
-          b: (1 / 3 * colors[0].b + 2 / 3 * colors[1].b).ceil(),
-        )
-      ]);
-    }
-
-    return colors;
-  }
-
-  List<int> generateAlphasFromInitialAlphas(int alpha0, int alpha1) {
-    final alphas = [
-      alpha0,
-      alpha1,
-    ];
-    if (alpha0 > alpha1) {
-      alphas.addAll([
-        (6 / 7 * alpha0 + 1 / 7 * alpha1).ceil(),
-        (5 / 7 * alpha0 + 2 / 7 * alpha1).ceil(),
-        (4 / 7 * alpha0 + 3 / 7 * alpha1).ceil(),
-        (3 / 7 * alpha0 + 4 / 7 * alpha1).ceil(),
-        (2 / 7 * alpha0 + 5 / 7 * alpha1).ceil(),
-        (1 / 7 * alpha0 + 6 / 7 * alpha1).ceil(),
-      ]);
-    } else {
-      alphas.addAll([
-        (4 / 5 * alpha0 + 1 / 5 * alpha1).ceil(),
-        (3 / 5 * alpha0 + 2 / 5 * alpha1).ceil(),
-        (2 / 5 * alpha0 + 3 / 5 * alpha1).ceil(),
-        (1 / 5 * alpha0 + 4 / 5 * alpha1).ceil(),
-        0,
-        255,
-      ]);
-    }
-    return alphas;
-  }
-
-  int get getBytesPer4x4Block {
-    switch (this) {
-      case DDSFourCCFormat.DXT1:
-        return 8;
-      case DDSFourCCFormat.DXT2:
-        return 16;
-      case DDSFourCCFormat.DXT3:
-        return 16;
-      case DDSFourCCFormat.DXT4:
-        return 16;
-      case DDSFourCCFormat.DXT5:
-        return 16;
-      default:
-        throw ImageException('Invalid DDSFourCCFormat value: $this');
     }
   }
 }

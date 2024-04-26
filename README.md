@@ -1,3 +1,10 @@
+# Why forking
+
+This library although great was lacking support for .dds files which are used in video games for texture compression. The support I've added is very limited to compressed files using DXT1 to DXT5 compression. DXT10 or more exotic compression algorithmn have not been implemented. Uncompressed format should also work although I haven't tried.
+Pitch, Depth, and Mipmap are also ignored.
+
+No encoding has been implemented.
+
 # Dart Image Library
 [![Dart CI](https://github.com/brendan-duncan/image/actions/workflows/build.yaml/badge.svg?branch=4.0)](https://github.com/brendan-duncan/image/actions/workflows/build.yaml)
 [![pub package](https://img.shields.io/pub/v/image.svg)](https://pub.dev/packages/image)
@@ -34,6 +41,7 @@ NOTE: 4.0 is a major revision from the previous version of the library.
 - PSD
 - EXR
 - PNM (PBM, PGM, PPM)
+- DDS
 
 **Write Only**
 

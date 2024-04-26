@@ -1,8 +1,6 @@
-import 'dart:math';
 import 'dart:typed_data';
 
 import '../../image.dart';
-import 'dds/dds_info.dart';
 
 class DdsDecoder extends Decoder {
   DdsInfo? info;
@@ -55,7 +53,7 @@ class DdsDecoder extends Decoder {
       return null;
     }
 
-    if (info!.pixelFormatFlags == DdsPixelFormatFlags.ddpfFourCC) {
+    if (info!.pixelFormat.isCompressed) {
       return _decodeDxt();
     }
     return _decodeRgb();
@@ -67,11 +65,16 @@ class DdsDecoder extends Decoder {
     final image = Image(
       width: width,
       height: height,
-      numChannels: info!.pixelFormatFourCC.channelsCount,
+      numChannels: 4,
     );
     final size = width * height;
+    final compressionAlgorithm =
+        info!.pixelFormat.compressionAlgorithm;
+    final bytesPer4x4Block =
+        compressionAlgorithm.getBytesPer4x4Block;
     final data = input.readBytes(
-        size ~/ _pixelsPerBlock * info!.pixelFormatFourCC.getBytesPer4x4Block);
+      size ~/ _pixelsPerBlock * bytesPer4x4Block,
+    );
 
     final List<Pixel> pixelsBuffer =
         List.filled(_pixelsPerBlock, Pixel.undefined);
@@ -86,16 +89,13 @@ class DdsDecoder extends Decoder {
       }
       col = (col + 4) % width;
       row += col == 0 ? 4 : 0;
-      final blockData = data.readBytes(
-        info!.pixelFormatFourCC.getBytesPer4x4Block,
-      );
+      final blockData = data.readBytes(bytesPer4x4Block);
 
-      if (info!.pixelFormatFourCC == DDSFourCCFormat.DXT5 ||
-          info!.pixelFormatFourCC == DDSFourCCFormat.DXT4) {
+      if (compressionAlgorithm == CompressionAlgorithm.BC3) {
         // use BC3 alpha block
         final alpha0 = blockData.readByte();
         final alpha1 = blockData.readByte();
-        final alphas = info!.pixelFormatFourCC.generateAlphasFromInitialAlphas(
+        final alphas = info!.pixelFormat.generateAlphasFromInitialAlphas(
           alpha0,
           alpha1,
         );
@@ -106,8 +106,8 @@ class DdsDecoder extends Decoder {
             pixelsBuffer[i * 8 + j].a = alpha;
           }
         }
-      } else if (info!.pixelFormatFourCC == DDSFourCCFormat.DXT3 ||
-          info!.pixelFormatFourCC == DDSFourCCFormat.DXT2) {
+      } else if (compressionAlgorithm ==
+          CompressionAlgorithm.BC2) {
         // use BC2 alpha block
         for (var i = 0; i < 4; i++) {
           final alphaData = blockData.readUint16();
@@ -121,7 +121,7 @@ class DdsDecoder extends Decoder {
       final color0Data = blockData.readUint16();
       final color1Data = blockData.readUint16();
 
-      final colors = info!.pixelFormatFourCC.generateColorsFromInitialColors(
+      final colors = info!.pixelFormat.generateColorsFromInitialColors(
         color0Data,
         color1Data,
       );
@@ -133,7 +133,7 @@ class DdsDecoder extends Decoder {
             ..r = color.r
             ..g = color.g
             ..b = color.b;
-          if (info!.pixelFormatFourCC == DDSFourCCFormat.DXT1) {
+          if (compressionAlgorithm == CompressionAlgorithm.BC1) {
             if (color.r + color.g + color.b == 0) {
               pixelsBuffer[i * 4 + j].a = 0;
             } else {
@@ -148,13 +148,13 @@ class DdsDecoder extends Decoder {
   }
 
   Image? _decodeRgb() {
-    final int pixelBytesCount = info!.pixelFormatRGBBitCount ~/ 8;
+    final int pixelBytesCount = info!.pixelFormat.rgbBitCount ~/ 8;
     final width = info!.width;
     final height = info!.height;
     final image = Image(
       width: width,
       height: height,
-      numChannels: pixelBytesCount,
+      numChannels: 4,
     );
 
     final size = width * height;
@@ -163,11 +163,13 @@ class DdsDecoder extends Decoder {
     for (final pixel in image) {
       final pixelData = data.readBytes(pixelBytesCount).readUint32();
       pixel
-        ..r = pixelData & info!.pixelFormatRBitMask
-        ..g = pixelData & info!.pixelFormatGBitMask
-        ..b = pixelData & info!.pixelFormatBBitMask;
+        ..r = pixelData & info!.pixelFormat.rBitMask
+        ..g = pixelData & info!.pixelFormat.gBitMask
+        ..b = pixelData & info!.pixelFormat.bBitMask;
       if (pixelBytesCount == 4) {
-        pixel.a = pixelData & info!.pixelFormatABitMask;
+        pixel.a = pixelData & info!.pixelFormat.aBitMask;
+      } else {
+        pixel.a = 255;
       }
     }
 
